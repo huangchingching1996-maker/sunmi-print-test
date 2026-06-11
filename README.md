@@ -20,7 +20,7 @@
 | 項目 | 說明 |
 |------|------|
 | 難度 | 中等 |
-| 需要安裝 | Sunmi 官方瀏覽器（SunmiBrowser / 商米瀏覽器）|
+| 需要安裝 | Sunmi 官方瀏覽器（SunmiBrowser）|
 | 原理 | Sunmi Browser 把印表機 SDK 注入成 `window.SunmiPrinter` 物件，可用 JS 直接呼叫 ESC/POS 指令 |
 | 限制 | 只在 Sunmi Browser 裡有效，Chrome/Firefox 無效 |
 
@@ -53,12 +53,12 @@
 
 ### 步驟 1：在 Sunmi 機器上安裝列印外掛
 
-1. 在 Sunmi 機器找到 **App Market（商米市場 / 應用市場）** 圖示，點開
+1. 在 Sunmi 機器找到 **App Market（應用市場）** 圖示，點開
 2. 在搜尋欄輸入：`列印服務` 或 `Print Service`
 3. 找到官方的 **Sunmi PrintService**（開發者是 SUNMI），安裝它
 4. 安裝完成後**重新啟動瀏覽器**
 
-> 如果 App Market 找不到，也可以試著搜尋 `PrinterPlugin` 或 `雲打印`。
+> 如果 App Market 找不到，也可以試著搜尋 `PrinterPlugin`。
 
 ---
 
@@ -76,7 +76,7 @@
 
 ### 步驟 3：嘗試列印
 
-1. 點擊藍色「**列印小票**」按鈕
+1. 點擊藍色「**列印收據**」按鈕
 2. 如果成功：會彈出「選擇印表機」或直接跳 Print Preview
    - 在印表機清單裡找「**內建印表機**」或「**Sunmi Printer**」，點選
    - 點確認，機器會吐出一張收據
@@ -97,7 +97,7 @@
 
 ## 方式 2：Sunmi Browser JS API（方式 1 不行時）
 
-1. 確認機器上有 **Sunmi Browser（商米瀏覽器）**，沒有的話從 App Market 安裝
+1. 確認機器上有 **Sunmi Browser**，沒有的話從 App Market 安裝
 2. 打開 Sunmi Browser，開啟測試頁
 3. 在開發者 console 輸入以下測試：
 
