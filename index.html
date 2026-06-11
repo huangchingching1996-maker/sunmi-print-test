@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Sunmi 列印測試</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      background: #e8e8e8;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 { font-size: 16px; color: #333; margin: 0 0 12px; text-align: center; }
+
+    .controls {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+
+    .controls label { font-size: 13px; color: #555; display: block; margin-bottom: 6px; }
+
+    .controls select {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    /* 偵測結果標籤 */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .status-badge.ok   { background: #e6f4ea; color: #1e7e34; }
+    .status-badge.warn { background: #fff3cd; color: #856404; }
+    .status-badge.dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .status-badge.ok  .dot  { background: #28a745; }
+    .status-badge.warn .dot { background: #ffc107; }
+
+    .btn-print {
+      display: block;
+      width: 100%;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    .btn-print:active { background: #1557b0; }
+    .btn-print:disabled { background: #999; cursor: default; }
+
+    .hint { font-size: 12px; color: #888; text-align: center; margin-top: 8px; }
+
+    /* 結果訊息 */
+    #print-result {
+      display: none;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+    }
+    #print-result.success { background: #e6f4ea; color: #1e7e34; display: block; }
+    #print-result.error   { background: #fde8e8; color: #c0392b; display: block; }
+
+    /* 收據預覽 */
+    .receipt-wrapper { background: white; box-shadow: 0 2px 12px rgba(0,0,0,.2); }
+
+    .receipt {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 10px 8px;
+      width: 210px;
+    }
+
+    .center { text-align: center; }
+    .right  { text-align: right; }
+    .bold   { font-weight: bold; }
+    .large  { font-size: 17px; font-weight: bold; }
+    .small  { font-size: 11px; }
+
+    .divider-solid  { border: none; border-top: 1px solid #000; margin: 6px 0; }
+    .divider-dashed { border: none; border-top: 1px dashed  #000; margin: 6px 0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table td { padding: 2px 0; vertical-align: top; }
+    .col-name  { width: 55%; }
+    .col-qty   { width: 15%; text-align: center; }
+    .col-price { width: 30%; text-align: right; }
+    .grand-total td { font-size: 16px; font-weight: bold; }
+
+    .footer { text-align: center; margin-top: 6px; font-size: 11px; }
+
+    @media print {
+      body { background: none; padding: 0; margin: 0; display: block; }
+      .controls, h1 { display: none !important; }
+      .receipt-wrapper { box-shadow: none; margin: 0; padding: 0; }
+      body.paper-58 .receipt { width: 52mm; font-size: 9pt; }
+      body.paper-80 .receipt { width: 74mm; font-size: 10pt; }
+      @page { size: 58mm auto; margin: 0; }
+      body.paper-80 { }
+      body.paper-80 @page { size: 80mm auto; }
+    }
+  </style>
+</head>
+<body class="paper-58">
+
+  <h1>Sunmi 列印功能測試頁</h1>
+
+  <div class="controls">
+    <label>選擇紙張寬度（依你的機型）：</label>
+    <select id="paper-select" onchange="changePaper(this.value)">
+      <option value="58" selected>58 mm（T2 mini、P2 mini、M2 mini）</option>
+      <option value="80">80 mm（T2、T2s、D3 Pro）</option>
+    </select>
+
+    <!-- 自動偵測結果 -->
+    <div id="status-badge" class="status-badge warn">
+      <span class="dot"></span>
+      <span id="status-text">偵測列印方式中...</span>
+    </div>
+
+    <button class="btn-print" id="btn-print" onclick="doPrint()">列印小票</button>
+    <p class="hint" id="hint-text"></p>
+    <div id="print-result"></div>
+  </div>
+
+  <!-- 收據預覽 -->
+  <div class="receipt-wrapper">
+    <div class="receipt" id="receipt">
+      <div class="center large">測試餐廳</div>
+      <div class="center small">TEST RESTAURANT</div>
+      <div class="center small">台北市中山區南京東路一段 1 號</div>
+      <div class="center small">Tel: 02-1234-5678</div>
+      <hr class="divider-dashed">
+      <div>單號：#TEST-0001</div>
+      <div id="receipt-time">時間：--</div>
+      <div>收銀員：測試員 A</div>
+      <div>桌號：外帶</div>
+      <hr class="divider-dashed">
+      <table>
+        <thead>
+          <tr>
+            <td class="col-name bold">品項</td>
+            <td class="col-qty bold">數量</td>
+            <td class="col-price bold">金額</td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="col-name">美式咖啡 (M)</td><td class="col-qty">1</td><td class="col-price">$55</td></tr>
+          <tr><td class="col-name">拿鐵 (L)</td><td class="col-qty">2</td><td class="col-price">$130</td></tr>
+          <tr><td class="col-name">起司蛋糕</td><td class="col-qty">1</td><td class="col-price">$80</td></tr>
+          <tr><td class="col-name">費南雪 x2</td><td class="col-qty">1</td><td class="col-price">$60</td></tr>
+        </tbody>
+      </table>
+      <hr class="divider-dashed">
+      <table>
+        <tr><td>小計</td><td class="right">$325</td></tr>
+        <tr><td>折扣 (會員 9 折)</td><td class="right">-$32</td></tr>
+        <tr><td>服務費</td><td class="right">$0</td></tr>
+      </table>
+      <hr class="divider-solid">
+      <table class="grand-total">
+        <tr><td>總　計</td><td class="right">$293</td></tr>
+      </table>
+      <hr class="divider-dashed">
+      <div>付款方式：現金</div>
+      <div>收　　款：$300</div>
+      <div>找　　零：$7</div>
+      <hr class="divider-dashed">
+      <div class="footer">
+        <div>感謝您的惠顧！</div>
+        <div>歡迎再次光臨</div>
+        <div style="margin-top:10px; font-size:10px; color:#aaa;">── 此為列印功能測試票 ──</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── 偵測可用的列印方式 ──────────────────────────────
+    // Sunmi Browser 會把印表機 SDK 注入成以下其中一個物件：
+    //   window.SunmiPrinter   （部分韌體）
+    //   window.sunmi          （部分韌體）
+    //   window.jsInterface    （舊版韌體）
+    function detectPrintMethod() {
+      if (window.SunmiPrinter && typeof window.SunmiPrinter.printerText === 'function') {
+        return 'sunmi_v1'
+      }
+      if (window.sunmi && window.sunmi.printer) {
+        return 'sunmi_v2'
+      }
+      if (window.jsInterface && typeof window.jsInterface.printerText === 'function') {
+        return 'sunmi_old'
+      }
+      return 'window_print'
+    }
+
+    let METHOD = detectPrintMethod()
+
+    // 更新 UI 狀態標籤
+    const badge = document.getElementById('status-badge')
+    const statusText = document.getElementById('status-text')
+    const hintEl = document.getElementById('hint-text')
+
+    const METHOD_LABELS = {
+      sunmi_v1:     '✓ 偵測到 Sunmi Browser API (v1)，無需外掛',
+      sunmi_v2:     '✓ 偵測到 Sunmi Browser API (v2)，無需外掛',
+      sunmi_old:    '✓ 偵測到 Sunmi Browser API (舊版)，無需外掛',
+      window_print: '⚠ 未偵測到 Sunmi API，將使用 window.print() 列印'
+    }
+    const METHOD_HINTS = {
+      sunmi_v1:     '直接呼叫內建印表機，不需任何設定',
+      sunmi_v2:     '直接呼叫內建印表機，不需任何設定',
+      sunmi_old:    '直接呼叫內建印表機，不需任何設定',
+      window_print: '請確認已安裝 Sunmi PrintService，或改用 Sunmi Browser 開啟本頁'
+    }
+
+    statusText.textContent = METHOD_LABELS[METHOD]
+    hintEl.textContent = METHOD_HINTS[METHOD]
+    if (METHOD !== 'window_print') {
+      badge.className = 'status-badge ok'
+    }
+
+    // ── 工具函式 ──────────────────────────────────────
+    function setReceiptTime() {
+      const now = new Date()
+      const pad = n => String(n).padStart(2, '0')
+      const str = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} `
+                + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+      document.getElementById('receipt-time').textContent = '時間：' + str
+      return str
+    }
+
+    function changePaper(mm) {
+      document.body.className = 'paper-' + mm
+      document.querySelector('.receipt').style.width = mm === '80' ? '290px' : '210px'
+    }
+
+    function showResult(ok, msg) {
+      const el = document.getElementById('print-result')
+      el.className = ok ? 'success' : 'error'
+      el.textContent = msg
+    }
+
+    // ── 排版收據文字（給 Sunmi JS API 用）───────────────
+    // Sunmi 內建印表機是文字模式，需要手動排版，不能用 HTML/CSS
+    function buildReceiptText(paperMm) {
+      const width = paperMm === '80' ? 48 : 32  // 每行字元數
+      const time = setReceiptTime()
+
+      function center(str) {
+        const pad = Math.max(0, Math.floor((width - str.length) / 2))
+        return ' '.repeat(pad) + str
+      }
+      function row(left, right) {
+        const spaces = Math.max(1, width - left.length - right.length)
+        return left + ' '.repeat(spaces) + right
+      }
+      function divider(ch) { return ch.repeat(width) }
+
+      return [
+        center('測試餐廳'),
+        center('TEST RESTAURANT'),
+        center('台北市中山區南京東路一段 1 號'),
+        center('Tel: 02-1234-5678'),
+        divider('-'),
+        '單號：#TEST-0001',
+        '時間：' + time,
+        '收銀員：測試員 A',
+        '桌號：外帶',
+        divider('-'),
+        row('品項', '數量  金額'),
+        divider('-'),
+        row('美式咖啡 (M)', ' 1    $55'),
+        row('拿鐵 (L)', ' 2   $130'),
+        row('起司蛋糕', ' 1    $80'),
+        row('費南雪 x2', ' 1    $60'),
+        divider('-'),
+        row('小計', '$325'),
+        row('折扣 (會員 9 折)', '-$32'),
+        row('服務費', '$0'),
+        divider('='),
+        row('總　計', '$293'),
+        divider('-'),
+        '付款方式：現金',
+        '收　　款：$300',
+        '找　　零：$7',
+        divider('-'),
+        center('感謝您的惠顧！'),
+        center('歡迎再次光臨'),
+        '',
+        center('── 此為列印功能測試票 ──'),
+        '',
+        '',
+        '',
+      ].join('\n')
+    }
+
+    // ── 主列印函式 ────────────────────────────────────
+    function doPrint() {
+      const btn = document.getElementById('btn-print')
+      btn.disabled = true
+      setReceiptTime()
+
+      const paperMm = document.getElementById('paper-select').value
+
+      try {
+        if (METHOD === 'sunmi_v1') {
+          const text = buildReceiptText(parseInt(paperMm))
+          window.SunmiPrinter.printerText(text)
+          window.SunmiPrinter.lineWrap(4)
+          showResult(true, '指令已送出，請確認機器是否出紙')
+
+        } else if (METHOD === 'sunmi_v2') {
+          const text = buildReceiptText(parseInt(paperMm))
+          window.sunmi.printer.printText(text, null)
+          window.sunmi.printer.lineWrap(4, null)
+          showResult(true, '指令已送出，請確認機器是否出紙')
+
+        } else if (METHOD === 'sunmi_old') {
+          const text = buildReceiptText(parseInt(paperMm))
+          window.jsInterface.printerText(text)
+          showResult(true, '指令已送出，請確認機器是否出紙')
+
+        } else {
+          // 回退到 window.print()
+          window.print()
+          showResult(true, 'window.print() 已呼叫')
+        }
+      } catch (err) {
+        showResult(false, '列印失敗：' + err.message)
+        // 重新偵測，有時 API 存在但初始化還沒完成
+        METHOD = 'window_print'
+        statusText.textContent = '列印 API 呼叫失敗，切換至 window.print()'
+        badge.className = 'status-badge warn'
+      } finally {
+        setTimeout(() => { btn.disabled = false }, 2000)
+      }
+    }
+
+    // 頁面載入時設定時間
+    setReceiptTime()
+  </script>
+</body>
+</html>
